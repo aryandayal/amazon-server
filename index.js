@@ -7,17 +7,25 @@ const app = express();
 const httpServer = http.createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: '*', // Adjust this for production to allow only your frontend origin
+    origin: 'http://localhost:3000', // Specific to your React app for better security
     methods: ['GET', 'POST']
   }
 });
 
-httpServer.listen(3000, () => {
-  console.log('HTTP/WebSocket server listening on port 3000');
+// Log when a web client connects
+io.on('connection', (socket) => {
+  console.log('Web client connected:', socket.id);
+  socket.on('disconnect', () => {
+    console.log('Web client disconnected:', socket.id);
+  });
+});
+
+httpServer.listen(4000, () => {
+  console.log('HTTP/WebSocket server listening on port 4000');
 });
 
 const tcpServer = net.createServer((socket) => {
-  console.log('Client connected');
+  console.log('GPS client connected');
   let buffer = '';
 
   socket.on('data', (data) => {
@@ -37,7 +45,7 @@ const tcpServer = net.createServer((socket) => {
   });
 
   socket.on('end', () => {
-    console.log('Client disconnected');
+    console.log('GPS client disconnected');
   });
 
   socket.on('error', (err) => {
@@ -84,24 +92,20 @@ function processPacket(packet, socket) {
 
   // Broadcast to WebSocket clients if it's a PVT packet with location data
   if (parsedData.header === 'PVT' && typeof parsedData.latitude === 'number' && typeof parsedData.longitude === 'number') {
-    // Filter for live packets only (packetStatus: 'L'), but you can remove this if you want history too
-    if (parsedData.packetStatus === 'L') {
-      io.emit('gps_update', {
-        lat: parsedData.latitude,
-        lng: parsedData.longitude,
-        speed: parsedData.speed,
-        heading: parsedData.heading,
-        altitude: parsedData.altitude,
-        satellites: parsedData.satellites,
-        date: parsedData.date,
-        time: parsedData.time,
-        vehicleNo: parsedData.vehicleNo,
-        imei: parsedData.imei
-        // Add more fields as needed
-      });
-    } else {
-      console.log('Skipping historical packet for live tracking');
-    }
+    console.log('Emitting gps_update to clients'); // Added log to confirm emission
+    io.emit('gps_update', {
+      lat: parsedData.latitude,
+      lng: parsedData.longitude,
+      speed: parsedData.speed,
+      heading: parsedData.heading,
+      altitude: parsedData.altitude,
+      satellites: parsedData.satellites,
+      date: parsedData.date,
+      time: parsedData.time,
+      vehicleNo: parsedData.vehicleNo,
+      imei: parsedData.imei
+      // Add more fields as needed
+    });
   }
 
   // Optional: Send a simple ACK back (custom, as protocol may vary; adjust as needed)
