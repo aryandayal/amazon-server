@@ -94,8 +94,8 @@ function processPacket(packet, socket) {
   if (parsedData.header === 'PVT' && typeof parsedData.latitude === 'number' && typeof parsedData.longitude === 'number') {
     console.log('Emitting gps_update to clients'); // Added log to confirm emission
     io.emit('gps_update', {
-      latitude: parsedData.latitude,
-      longitude: parsedData.longitude,
+      lat: parsedData.latitude,
+      lng: parsedData.longitude,
       speed: parsedData.speed,
       heading: parsedData.heading,
       altitude: parsedData.altitude,
@@ -114,7 +114,7 @@ function processPacket(packet, socket) {
 }
 
 function parsePVT(fields) {
-  // Adjusted parse for the specific device format (no lat/lon direction fields)
+  // Parse based on AIS-140 PVT format from official specifications
   const json = {
     header: 'PVT',
     vendorId: fields[1],
@@ -127,24 +127,24 @@ function parsePVT(fields) {
     gpsFix: parseInt(fields[8], 10),
     date: fields[9], // DDMMYYYY
     time: fields[10], // hhmmss UTC
-    latitude: parseFloat(fields[11]),
-    longitude: parseFloat(fields[12]),
-    speed: parseFloat(fields[13]),
-    heading: parseFloat(fields[14]),
-    satellites: parseInt(fields[15], 10),
-    altitude: parseFloat(fields[16]),
-    pdop: parseFloat(fields[17]),
-    hdop: parseFloat(fields[18]),
-    networkOperator: fields[19],
-    ignition: parseInt(fields[20], 10),
-    mainPowerStatus: parseInt(fields[21], 10),
-    mainInputVoltage: parseFloat(fields[22]),
-    internalBatteryVoltage: parseFloat(fields[23]),
-    emergencyStatus: parseInt(fields[24], 10)
+    latitude: parseFloat(fields[11]) * (fields[12] === 'S' ? -1 : 1),
+    longitude: parseFloat(fields[13]) * (fields[14] === 'W' ? -1 : 1),
+    speed: parseFloat(fields[15]),
+    heading: parseFloat(fields[16]),
+    satellites: parseInt(fields[17], 10),
+    altitude: parseFloat(fields[18]),
+    pdop: parseFloat(fields[19]),
+    hdop: parseFloat(fields[20]),
+    networkOperator: fields[21],
+    ignition: parseInt(fields[22], 10),
+    mainPowerStatus: parseInt(fields[23], 10),
+    mainInputVoltage: parseFloat(fields[24]),
+    internalBatteryVoltage: parseFloat(fields[25]),
+    emergencyStatus: parseInt(fields[26], 10)
   };
 
   // Optional/additional fields (add more as per your device)
-  let index = 25;
+  let index = 27;
   if (fields.length > index) json.tamperAlert = fields[index++];
   if (fields.length > index) json.gsmSignalStrength = parseInt(fields[index++], 10);
   if (fields.length > index) json.mcc = fields[index++];
